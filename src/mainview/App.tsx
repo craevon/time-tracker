@@ -1,115 +1,134 @@
-import { useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { rpc } from "./lib/rpc";
+import type { Activity, Session } from "./lib/rpc";
+import Header from "./components/Header";
+import TileGrid from "./components/TileGrid";
+import HistoryPanel from "./components/HistoryPanel";
+import OptionsPanel from "./components/OptionsPanel";
 
-function App() {
-	const [count, setCount] = useState(0);
+type View = "tracker" | "history" | "options";
+
+export default function App() {
+	const [view, setView] = useState<View>("tracker");
+	const [activities, setActivities] = useState<Activity[]>([]);
+	const [runningSession, setRunningSession] = useState<Session | null>(null);
+	const [loading, setLoading] = useState(true);
+
+	// Load activities and running session
+	const loadData = useCallback(async () => {
+		const [acts, running] = await Promise.all([
+			rpc.request("getActivities"),
+			rpc.request("getRunningSession"),
+		]);
+		setActivities(acts);
+		setRunningSession(running);
+		setLoading(false);
+	}, []);
+
+	useEffect(() => {
+		loadData();
+	}, [loadData]);
+
+	const handleStart = async (activity: Activity) => {
+		try {
+			const session = await rpc.request("startSession", {
+				activityId: activity.id,
+			});
+			setRunningSession(session);
+		} catch (err) {
+			console.error("Failed to start session:", err);
+		}
+	};
+
+	const handleStop = async (session: Session) => {
+		try {
+			await rpc.request("stopSession", { sessionId: session.id });
+			setRunningSession(null);
+		} catch (err) {
+			console.error("Failed to stop session:", err);
+		}
+	};
+
+	const handleActivitiesChanged = useCallback(() => {
+		loadData();
+	}, [loadData]);
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-indigo-500 to-purple-600 text-gray-900">
-			<div className="container mx-auto px-4 py-10 max-w-3xl">
-				<h1 className="text-5xl font-bold text-center text-white mb-2 drop-shadow-lg">
-					React + Tailwind + Vite + HMR
-				</h1>
-				<p className="text-xl text-center text-white/90 mb-10">
-					A fast Electrobun app with hot module replacement
-				</p>
+		<div className="flex flex-col h-screen bg-gray-950 text-white overflow-hidden">
+			{/* Subtle background radial gradient */}
+			<div
+				className="pointer-events-none fixed inset-0 opacity-30"
+				style={{
+					background:
+						"radial-gradient(ellipse 80% 60% at 50% -20%, #6366f140 0%, transparent 70%)",
+				}}
+			/>
 
-				<div className="bg-white rounded-xl shadow-xl p-8 mb-8">
-					<h2 className="text-2xl font-semibold text-indigo-600 mb-4">
-						Interactive Counter
-					</h2>
-					<p className="mb-4 text-gray-600">
-						Click the button below to test React state. With HMR enabled, you
-						can edit this component and see changes instantly without losing
-						state.
-					</p>
-					<div className="flex items-center gap-4">
-						<button
-							onClick={() => setCount((c) => c + 1)}
-							className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-md hover:shadow-lg"
-						>
-							Count: {count}
-						</button>
-						<button
-							onClick={() => setCount(0)}
-							className="px-4 py-3 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-colors"
-						>
-							Reset
-						</button>
-					</div>
-				</div>
+			<Header
+				activeView={view}
+				onNavigate={setView}
+				runningActivityName={runningSession?.activity_name}
+			/>
 
-				<div className="bg-white rounded-xl shadow-xl p-8 mb-8">
-					<h2 className="text-2xl font-semibold text-indigo-600 mb-4">
-						Getting Started
-					</h2>
-					<ul className="space-y-3 text-gray-700">
-						<li className="flex items-start gap-2">
-							<span className="text-indigo-500 font-bold">1.</span>
-							<span>
-								Run{" "}
-								<code className="bg-gray-100 px-2 py-1 rounded text-sm">
-									bun run dev
-								</code>{" "}
-								for development without HMR
-							</span>
-						</li>
-						<li className="flex items-start gap-2">
-							<span className="text-indigo-500 font-bold">2.</span>
-							<span>
-								Run{" "}
-								<code className="bg-gray-100 px-2 py-1 rounded text-sm">
-									bun run dev:hmr
-								</code>{" "}
-								for development with hot reload
-							</span>
-						</li>
-						<li className="flex items-start gap-2">
-							<span className="text-indigo-500 font-bold">3.</span>
-							<span>
-								Run{" "}
-								<code className="bg-gray-100 px-2 py-1 rounded text-sm">
-									bun run build
-								</code>{" "}
-								to build for production
-							</span>
-						</li>
-					</ul>
-				</div>
-
-				<div className="bg-white rounded-xl shadow-xl p-8">
-					<h2 className="text-2xl font-semibold text-indigo-600 mb-4">Stack</h2>
-					<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-						<div className="text-center p-4 bg-gray-50 rounded-lg">
-							<div className="text-3xl mb-2">⚡</div>
-							<div className="font-medium">Electrobun</div>
-						</div>
-						<div className="text-center p-4 bg-gray-50 rounded-lg">
-							<div className="text-3xl mb-2">⚛️</div>
-							<div className="font-medium">React</div>
-						</div>
-						<div className="text-center p-4 bg-gray-50 rounded-lg">
-							<div className="text-3xl mb-2">🎨</div>
-							<div className="font-medium">Tailwind</div>
-						</div>
-						<div className="text-center p-4 bg-gray-50 rounded-lg">
-							<div className="text-3xl mb-2">🔥</div>
-							<div className="font-medium">Vite HMR</div>
+			<main className="flex flex-col flex-1 overflow-hidden relative">
+				{loading ? (
+					<div className="flex items-center justify-center flex-1">
+						<div className="flex flex-col items-center gap-3">
+							<div className="w-10 h-10 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+							<p className="text-gray-500 text-sm">Loading…</p>
 						</div>
 					</div>
-				</div>
+				) : (
+					<>
+						{/* Tracker view */}
+						<div className={`flex flex-col flex-1 overflow-hidden transition-all duration-200 ${view === "tracker" ? "block" : "hidden"}`}>
+							{runningSession && (
+								<div
+									className="mx-6 mt-4 px-4 py-3 rounded-xl border flex items-center gap-3"
+									style={{
+										background: `${runningSession.activity_color}15`,
+										borderColor: `${runningSession.activity_color}40`,
+									}}
+								>
+									<span className="text-lg">{runningSession.activity_icon}</span>
+									<div className="flex-1">
+										<p className="text-sm font-semibold text-white">
+											Tracking: {runningSession.activity_name}
+										</p>
+										<p className="text-xs text-gray-400">
+											Started {new Date(runningSession.started_at + "Z").toLocaleTimeString(undefined, { timeStyle: "short" })}
+										</p>
+									</div>
+									<button
+										id="stop-current-session"
+										onClick={() => handleStop(runningSession)}
+										className="px-3 py-1.5 rounded-lg bg-red-600/80 hover:bg-red-500 text-white text-xs font-semibold transition-all"
+									>
+										Stop ■
+									</button>
+								</div>
+							)}
 
-				<div className="text-center text-white/80 mt-10 p-6 bg-white/10 rounded-lg backdrop-blur">
-					<p>
-						Edit{" "}
-						<code className="bg-white/20 px-2 py-1 rounded text-sm">
-							src/mainview/App.tsx
-						</code>{" "}
-						and save to see HMR in action
-					</p>
-				</div>
-			</div>
+							<TileGrid
+								activities={activities}
+								runningSession={runningSession}
+								onStart={handleStart}
+								onStop={handleStop}
+							/>
+						</div>
+
+						{/* History view */}
+						<div className={`flex flex-col flex-1 overflow-hidden ${view === "history" ? "block" : "hidden"}`}>
+							<HistoryPanel />
+						</div>
+
+						{/* Options view */}
+						<div className={`flex flex-col flex-1 overflow-hidden ${view === "options" ? "block" : "hidden"}`}>
+							<OptionsPanel onActivitiesChanged={handleActivitiesChanged} />
+						</div>
+					</>
+				)}
+			</main>
 		</div>
 	);
 }
-
-export default App;
