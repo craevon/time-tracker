@@ -8,7 +8,7 @@ import OptionsPanel from "./components/OptionsPanel";
 
 type View = "tracker" | "history" | "options";
 
-export default function App() {
+const App = () => {
 	const [view, setView] = useState<View>("tracker");
 	const [activities, setActivities] = useState<Activity[]>([]);
 	const [runningSession, setRunningSession] = useState<Session | null>(null);
@@ -132,3 +132,6 @@ export default function App() {
 		</div>
 	);
 }
+
+export default App;
+

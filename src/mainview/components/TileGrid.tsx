@@ -8,12 +8,12 @@ interface TileGridProps {
 	onStop: (session: Session) => void;
 }
 
-export default function TileGrid({
+const TileGrid = ({
 	activities,
 	runningSession,
 	onStart,
 	onStop,
-}: TileGridProps) {
+}: TileGridProps) => {
 	if (activities.length === 0) {
 		return (
 			<div className="flex flex-col items-center justify-center flex-1 gap-4 text-center px-8">
@@ -46,4 +46,7 @@ export default function TileGrid({
 			</div>
 		</div>
 	);
-}
+};
+
+export default TileGrid;
+
